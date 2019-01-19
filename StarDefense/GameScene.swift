@@ -7,83 +7,139 @@
 //
 
 import SpriteKit
-import GameplayKit
+import CoreMotion
 
-class GameScene: SKScene {
+class GameScene: SKScene, SKPhysicsContactDelegate {
     
-    private var label : SKLabelNode?
-    private var spinnyNode : SKShapeNode?
+    let background = SKEmitterNode(fileNamed: "stars.sks")!
+    let explosion = SKEmitterNode(fileNamed: "explosion.sks")!
+    let player = SKSpriteNode(imageNamed: "/Users/nareg/Desktop/iPhoneDev/StarDefense/ship.png")
+    let alien_images = ["/Users/nareg/Desktop/iPhoneDev/StarDefense/alien_ship_one.png", "/Users/nareg/Desktop/iPhoneDev/StarDefense/alien_ship_two.png", "/Users/nareg/Desktop/iPhoneDev/StarDefense/alien_ship_three.png"]
+    let alienCategory:UInt32 = 0x1 << 1
+    let laserCategory:UInt32 = 0x1 << 0
+    
+    var score:Int = 0
+    var spawnTimer:Timer!
+    
+    let motionManger = CMMotionManager()
+    var xAcceleration:CGFloat = 0
     
     override func didMove(to view: SKView) {
+        self.backgroundColor = UIColor.black
         
-        // Get label node from scene and store it for use later
-        self.label = self.childNode(withName: "//helloLabel") as? SKLabelNode
-        if let label = self.label {
-            label.alpha = 0.0
-            label.run(SKAction.fadeIn(withDuration: 2.0))
-        }
+        background.position = CGPoint(x: 200, y: view.frame.height)
+        background.advanceSimulationTime(10)
+        background.zPosition = -5
         
-        // Create shape node to use during mouse interaction
-        let w = (self.size.width + self.size.height) * 0.05
-        self.spinnyNode = SKShapeNode.init(rectOf: CGSize.init(width: w, height: w), cornerRadius: w * 0.3)
+        player.position = CGPoint(x: view.frame.width/2, y: 80)
         
-        if let spinnyNode = self.spinnyNode {
-            spinnyNode.lineWidth = 2.5
-            
-            spinnyNode.run(SKAction.repeatForever(SKAction.rotate(byAngle: CGFloat(Double.pi), duration: 1)))
-            spinnyNode.run(SKAction.sequence([SKAction.wait(forDuration: 0.5),
-                                              SKAction.fadeOut(withDuration: 0.5),
-                                              SKAction.removeFromParent()]))
-        }
-    }
-    
-    
-    func touchDown(atPoint pos : CGPoint) {
-        if let n = self.spinnyNode?.copy() as! SKShapeNode? {
-            n.position = pos
-            n.strokeColor = SKColor.green
-            self.addChild(n)
-        }
-    }
-    
-    func touchMoved(toPoint pos : CGPoint) {
-        if let n = self.spinnyNode?.copy() as! SKShapeNode? {
-            n.position = pos
-            n.strokeColor = SKColor.blue
-            self.addChild(n)
-        }
-    }
-    
-    func touchUp(atPoint pos : CGPoint) {
-        if let n = self.spinnyNode?.copy() as! SKShapeNode? {
-            n.position = pos
-            n.strokeColor = SKColor.red
-            self.addChild(n)
-        }
-    }
-    
-    override func touchesBegan(_ touches: Set<UITouch>, with event: UIEvent?) {
-        if let label = self.label {
-            label.run(SKAction.init(named: "Pulse")!, withKey: "fadeInOut")
-        }
+        self.physicsWorld.contactDelegate = self
         
-        for t in touches { self.touchDown(atPoint: t.location(in: self)) }
-    }
-    
-    override func touchesMoved(_ touches: Set<UITouch>, with event: UIEvent?) {
-        for t in touches { self.touchMoved(toPoint: t.location(in: self)) }
+        self.addChild(player)
+        self.addChild(background)
+        
+        spawnTimer = Timer.scheduledTimer(timeInterval: 3, target: self, selector: #selector(spawnAlien), userInfo: nil, repeats: true)
+        
+        motionManger.accelerometerUpdateInterval = 0.2
+        motionManger.startAccelerometerUpdates(to: OperationQueue.current!) { (data:CMAccelerometerData?, error:Error?) in
+            if let accelerometerData = data {
+                let acceleration = accelerometerData.acceleration
+                self.xAcceleration = CGFloat(acceleration.x) * 0.75 + self.xAcceleration * 0.25
+            }
+        }
     }
     
     override func touchesEnded(_ touches: Set<UITouch>, with event: UIEvent?) {
-        for t in touches { self.touchUp(atPoint: t.location(in: self)) }
+        fireLaser()
+    }
+
+    func fireLaser() {
+        let laser = SKSpriteNode(imageNamed: "/Users/nareg/Desktop/iPhoneDev/StarDefense/laser_bolt.png")
+        laser.position = CGPoint(x: player.position.x, y: player.position.y)
+        laser.zPosition = -1
+        laser.physicsBody = SKPhysicsBody(rectangleOf: CGSize(width: laser.size.width, height: laser.size.height))
+        laser.physicsBody?.categoryBitMask = laserCategory
+        laser.physicsBody?.contactTestBitMask = alienCategory
+        laser.physicsBody?.collisionBitMask = 0
+        laser.physicsBody?.usesPreciseCollisionDetection = true
+        
+        self.addChild(laser)
+        
+        let animationDuration:TimeInterval = 0.5
+        var actionArray = [SKAction]()
+        
+        actionArray.append(SKAction.move(to: CGPoint(x: player.position.x, y: self.frame.size.height + 10), duration: animationDuration))
+        actionArray.append(SKAction.removeFromParent())
+        
+        laser.run(SKAction.sequence(actionArray))
     }
     
-    override func touchesCancelled(_ touches: Set<UITouch>, with event: UIEvent?) {
-        for t in touches { self.touchUp(atPoint: t.location(in: self)) }
+    @objc func spawnAlien() {
+        let image = alien_images[Int.random(in: 0 ... 2)]
+        let alien = SKSpriteNode(imageNamed: image)
+        let max = Int(view!.frame.width) - 30
+        alien.position = CGPoint(x: Int.random(in: 0 ... max), y: Int(view!.frame.height) + 50)
+        alien.physicsBody = SKPhysicsBody(rectangleOf: CGSize(width: alien.size.width, height: alien.size.height))
+        alien.physicsBody?.categoryBitMask = alienCategory
+        alien.physicsBody?.contactTestBitMask = laserCategory
+        alien.physicsBody?.collisionBitMask = 0
+        
+        self.addChild(alien)
+        
+        let animationDuration:TimeInterval = 6
+        
+        var actionArray = [SKAction]()
+        
+        actionArray.append(SKAction.move(to: CGPoint(x: alien.position.x, y: -alien.size.height), duration: animationDuration))
+        actionArray.append(SKAction.removeFromParent())
+        
+        alien.run(SKAction.sequence(actionArray))
     }
     
-    
-    override func update(_ currentTime: TimeInterval) {
-        // Called before each frame is rendered
+    func didBegin(_ contact: SKPhysicsContact) {
+        var firstBody:SKPhysicsBody
+        var secondBody:SKPhysicsBody
+        
+        if contact.bodyA.categoryBitMask < contact.bodyB.categoryBitMask {
+            firstBody = contact.bodyA
+            secondBody = contact.bodyB
+        }else{
+            firstBody = contact.bodyB
+            secondBody = contact.bodyA
+        }
+        
+        if (firstBody.categoryBitMask & laserCategory) != 0 && (secondBody.categoryBitMask & alienCategory) != 0 {
+            laserHitAlien(laser: firstBody.node as! SKSpriteNode, alien: secondBody.node as! SKSpriteNode)
+        }
     }
+    
+    func laserHitAlien(laser: SKSpriteNode, alien: SKSpriteNode) {
+        let explosion = SKEmitterNode(fileNamed: "explosion.sks")!
+        explosion.position = alien.position
+        
+        self.addChild(explosion)
+        
+        laser.removeFromParent()
+        alien.removeFromParent()
+        
+        
+        self.run(SKAction.wait(forDuration: 0.2)) {
+            explosion.removeFromParent()
+        }
+        
+        score += 10
+    }
+    
+    override func didSimulatePhysics() {
+        
+        player.position.x += xAcceleration * 50
+        
+        if player.position.x < -20 {
+            player.position = CGPoint(x: self.size.width + 20, y: player.position.y)
+        }else if player.position.x > self.size.width + 20 {
+            player.position = CGPoint(x: -20, y: player.position.y)
+        }
+        
+    }
+    
 }
