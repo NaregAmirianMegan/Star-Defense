@@ -92,7 +92,13 @@ class GameScene: SKScene, SKPhysicsContactDelegate {
     
     @objc func alienLasers() {
         for alien in aliens {
-            fireAlienLaser(alien: alien)
+            if(alien.position.y < 0) {
+                //Lose 5 points for each ship that makes it passed your defenses
+                GameScene.score -= 5
+                alien.removeFromParent()
+            }else {
+                fireAlienLaser(alien: alien)
+            }
         }
     }
     
@@ -171,7 +177,7 @@ class GameScene: SKScene, SKPhysicsContactDelegate {
         
         self.run(SKAction.wait(forDuration: 0.5)) {
             explosion.removeFromParent()
-             self.loseGame()
+            self.loseGame()
         }
     }
     
