@@ -13,8 +13,8 @@ class GameScene: SKScene, SKPhysicsContactDelegate {
     
     let background = SKEmitterNode(fileNamed: "stars.sks")!
     let explosion = SKEmitterNode(fileNamed: "explosion.sks")!
-    let player = SKSpriteNode(imageNamed: "/Users/nareg/Desktop/iPhoneDev/StarDefense/ship.png")
-    let alien_images = ["/Users/nareg/Desktop/iPhoneDev/StarDefense/alien_ship_one.png", "/Users/nareg/Desktop/iPhoneDev/StarDefense/alien_ship_two.png", "/Users/nareg/Desktop/iPhoneDev/StarDefense/alien_ship_three.png"]
+    let player = SKSpriteNode(imageNamed: "ship")
+    let alien_images = ["alien_one", "alien_two", "alien_three"]
     
     var aliens = [SKSpriteNode]()
     
@@ -51,7 +51,7 @@ class GameScene: SKScene, SKPhysicsContactDelegate {
         self.addChild(player)
         self.addChild(background)
         
-        spawnTimer = Timer.scheduledTimer(timeInterval: 1, target: self, selector: #selector(spawnAlien), userInfo: nil, repeats: true)
+        spawnTimer = Timer.scheduledTimer(timeInterval: 3, target: self, selector: #selector(spawnAlien), userInfo: nil, repeats: true)
     
         fireTimer = Timer.scheduledTimer(timeInterval: 3, target: self, selector: #selector(alienLasers), userInfo: nil, repeats: true)
         
@@ -69,7 +69,7 @@ class GameScene: SKScene, SKPhysicsContactDelegate {
     }
 
     func fireLaser() {
-        let laser = SKSpriteNode(imageNamed: "/Users/nareg/Desktop/iPhoneDev/StarDefense/laser.png")
+        let laser = SKSpriteNode(imageNamed: "laser")
         laser.position = CGPoint(x: player.position.x, y: player.position.y)
         laser.zPosition = -1
         
@@ -104,7 +104,7 @@ class GameScene: SKScene, SKPhysicsContactDelegate {
     
     //TODO: delete these lasers
     @objc func fireAlienLaser(alien: SKSpriteNode) {
-        let alienLaser = SKSpriteNode(imageNamed: "/Users/nareg/Desktop/iPhoneDev/StarDefense/alien_laser.png")
+        let alienLaser = SKSpriteNode(imageNamed: "alien_laser")
         alienLaser.position = CGPoint(x: alien.position.x, y: alien.position.y)
         alienLaser.zPosition = -1
         
@@ -128,7 +128,7 @@ class GameScene: SKScene, SKPhysicsContactDelegate {
     @objc func spawnAlien() {
         let image = alien_images[Int.random(in: 0 ... 2)]
         let alien = SKSpriteNode(imageNamed: image)
-        let max = Int(view!.frame.width) - 30
+        var max = Int(view!.frame.width) - 30
         alien.position = CGPoint(x: Int.random(in: 0 ... max), y: Int(view!.frame.height) + 50)
         alien.physicsBody = SKPhysicsBody(rectangleOf: CGSize(width: alien.size.width, height: alien.size.height))
         alien.physicsBody?.categoryBitMask = alienCategory
@@ -142,7 +142,9 @@ class GameScene: SKScene, SKPhysicsContactDelegate {
         
         var actionArray = [SKAction]()
         
-        actionArray.append(SKAction.move(to: CGPoint(x: alien.position.x, y: -alien.size.height), duration: animationDuration))
+        //change to: x position to a random value in the range of the screen width at some point to make ships move diagonally
+        max = Int(view!.frame.width) - 30
+        actionArray.append(SKAction.move(to: CGPoint(x: Int.random(in: 0 ... max), y: -50), duration: animationDuration))
         actionArray.append(SKAction.removeFromParent())
         
         alien.run(SKAction.sequence(actionArray))
